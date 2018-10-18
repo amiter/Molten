@@ -164,6 +164,63 @@ static void file_contents_record(mo_interceptor_t *pit, mo_frame_t *frame)
 }
 
 /*******************************************************/
+/********************stream_socket_client***************/
+/*******************************************************/
+static void stream_socket_client_record(mo_interceptor_t *pit, mo_frame_t *frame) 
+{
+    if (frame->arg_count < 1) {
+        return;
+    }
+    GET_FUNC_ARG(socket_address,    0);
+
+    zval *span = build_com_record(pit, frame, 0);
+
+    if (MO_Z_TYPE_P(socket_address) == IS_STRING) {
+        pit->psb->span_add_ba_ex(span, "socket.address", Z_STRVAL_P(socket_address), frame->exit_time, pit->pct, BA_NORMAL);
+    }
+
+    mo_chain_add_span(pit->pct->pcl, span);
+}
+
+/*******************************************************/
+/******************** fwrite****************************/
+/*******************************************************/
+static void fwrite_record(mo_interceptor_t *pit, mo_frame_t *frame) 
+{
+    if (frame->arg_count < 2) {
+        return;
+    }
+    zval *span = build_com_record(pit, frame, 0);
+
+    /* add content */
+    GET_FUNC_ARG(content,1);
+    if (frame->arg_count >= 2 && MO_Z_TYPE_P(content) == IS_STRING) {
+        pit->psb->span_add_ba_ex(span,  "fwrite.data", Z_STRVAL_P(content), frame->entry_time, pit->pct, BA_NORMAL);
+    }
+
+    mo_chain_add_span(pit->pct->pcl, span);
+}
+
+/*******************************************************/
+/******************** fgets  ***************************/
+/*******************************************************/
+static void fgets_record(mo_interceptor_t *pit, mo_frame_t *frame) 
+{
+    if (frame->arg_count < 1) {
+        return;
+    }
+    zval *span = build_com_record(pit, frame, 0);
+
+    /* add content */
+    GET_FUNC_ARG(socket_resource,0);
+    if (MO_Z_TYPE_P(socket_resource) == IS_RESOURCE) {
+        pit->psb->span_add_ba_ex(span,  "fgets.data", "", frame->entry_time, pit->pct, BA_NORMAL);
+    }
+
+    mo_chain_add_span(pit->pct->pcl, span);
+}
+
+/*******************************************************/
 /********************curl_multi*************************/
 /*******************************************************/
 
@@ -1459,6 +1516,11 @@ void mo_intercept_ctor(mo_interceptor_t *pit, struct mo_chain_st *pct, mo_span_b
     /* file_content */
     INIT_INTERCEPTOR_ELE_TAG(file_get_contents,     &file_contents_record);
     INIT_INTERCEPTOR_ELE_TAG(file_put_contents,     &file_contents_record);
+
+    /* socket_operate */
+    INIT_INTERCEPTOR_ELE_TAG(stream_socket_client,  &stream_socket_client_record);
+    INIT_INTERCEPTOR_ELE_TAG(fwrite,                &fwrite_record);
+    INIT_INTERCEPTOR_ELE_TAG(fgets,                 &fgets_record);
 
     /* curl_multi */
     if (extension_loaded("curl")) {
