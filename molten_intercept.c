@@ -183,7 +183,7 @@ static void stream_socket_client_record(mo_interceptor_t *pit, mo_frame_t *frame
 }
 
 /*******************************************************/
-/******************** fwrite****************************/
+/******** fwrite/stream_socket_sendto ******************/
 /*******************************************************/
 static void fwrite_record(mo_interceptor_t *pit, mo_frame_t *frame) 
 {
@@ -1520,6 +1520,7 @@ void mo_intercept_ctor(mo_interceptor_t *pit, struct mo_chain_st *pct, mo_span_b
     /* socket_operate */
     INIT_INTERCEPTOR_ELE_TAG(stream_socket_client,  &stream_socket_client_record);
     INIT_INTERCEPTOR_ELE_TAG(fwrite,                &fwrite_record);
+    INIT_INTERCEPTOR_ELE_TAG(stream_socket_sendto,  &fwrite_record);
     INIT_INTERCEPTOR_ELE_TAG(fgets,                 &fgets_record);
 
     /* curl_multi */
