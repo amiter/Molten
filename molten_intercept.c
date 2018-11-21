@@ -511,6 +511,36 @@ static void pdo_record(mo_interceptor_t *pit, mo_frame_t *frame)
 }
 /* }}} */
 
+/*******************************************************/
+/******************** predis connect *******************/
+/*******************************************************/
+static void predis_connect(mo_interceptor_t *pit, mo_frame_t *frame) 
+{
+    if (frame->arg_count < 1) {
+        return;
+    }
+    zval *span = build_com_record(pit, frame, 0);
+    pit->psb->span_add_ba_ex(span,  "db.type", "redis", frame->exit_time, pit->pct, BA_NORMAL);
+    mo_chain_add_span(pit->pct->pcl, span);
+}
+static void predis_record(mo_interceptor_t *pit, mo_frame_t *frame) 
+{
+    zval *span;
+
+    /* add function name */
+    pit->psb->start_span_ex(&span, smart_string_str(frame->function), pit->pct, frame, AN_CLIENT);
+
+    pit->psb->span_add_ba_ex(span,  "db.type", "redis", frame->exit_time, pit->pct, BA_NORMAL);
+
+    /* db.statement */
+    char *value_param = convert_args_to_string(frame);
+    pit->psb->span_add_ba_ex(span,  "db.statement", value_param, frame->exit_time, pit->pct, BA_NORMAL);
+    efree(value_param);
+
+    mo_chain_add_span(pit->pct->pcl, span);
+}
+
+
 /* {{{ pdo statement record */
 static void pdo_statement_record(mo_interceptor_t *pit, mo_frame_t *frame)
 {
@@ -1546,7 +1576,27 @@ void mo_intercept_ctor(mo_interceptor_t *pit, struct mo_chain_st *pct, mo_span_b
         RIE(Redis@hDel);RIE(Redis@hExists);RIE(Redis@hGet);RIE(Redis@hGetAll);RIE(Redis@hIncrBy);
         RIE(Redis@hIncrByFloat);RIE(Redis@hKeys);RIE(Redis@hLen);RIE(Redis@hMGet);RIE(Redis@hMSet);
         RIE(Redis@hSet);RIE(Redis@hSetNx);RIE(Redis@hVals);RIE(Redis@hScan);RIE(Redis@hStrLen);
+        RIE(Redis@sadd);RIE(Redis@srem);
     }
+    /* add predis http://github.com/nrk/predis */
+    ADD_INTERCEPTOR_TAG(pit, Predis\\Client);
+    INIT_INTERCEPTOR_ELE(Predis\\Client@createConnection, NULL, &predis_connect);
+#define PRIE(k)   INIT_INTERCEPTOR_ELE(k,    NULL, &predis_record)
+    PRIE(Predis\\Client@connect);PRIE(Predis\\Client@open);PRIE(Predis\\Client@pconnect);PRIE(Predis\\Client@popen);
+    PRIE(Predis\\Client@auth);PRIE(Predis\\Client@flushAll);PRIE(Predis\\Client@flushDb);PRIE(Predis\\Client@save);
+    PRIE(Predis\\Client@append);PRIE(Predis\\Client@bitCount);PRIE(Predis\\Client@bitOp);PRIE(Predis\\Client@decr);
+    PRIE(Predis\\Client@decrBy);PRIE(Predis\\Client@get);PRIE(Predis\\Client@getBit);PRIE(Predis\\Client@getRange);
+    PRIE(Predis\\Client@getSet);PRIE(Predis\\Client@incr);PRIE(Predis\\Client@incrBy);PRIE(Predis\\Client@incrByFloat);
+    PRIE(Predis\\Client@mGet);PRIE(Predis\\Client@getMultiple);PRIE(Predis\\Client@mSet);PRIE(Predis\\Client@mSetNx);
+    PRIE(Predis\\Client@set);PRIE(Predis\\Client@setBit);PRIE(Predis\\Client@setEx);PRIE(Predis\\Client@pSetEx);
+    PRIE(Predis\\Client@setNx);PRIE(Predis\\Client@setRange);PRIE(Predis\\Client@del);PRIE(Predis\\Client@delete);
+    PRIE(Predis\\Client@dump);PRIE(Predis\\Client@exists);PRIE(Predis\\Client@keys);PRIE(Predis\\Client@getKeys);
+    PRIE(Predis\\Client@scan);PRIE(Predis\\Client@migrate);PRIE(Predis\\Client@move);PRIE(Predis\\Client@persist);PRIE(Predis\\Client@sort);
+    PRIE(Predis\\Client@hDel);PRIE(Predis\\Client@hExists);PRIE(Predis\\Client@hGet);PRIE(Predis\\Client@hGetAll);PRIE(Predis\\Client@hIncrBy);
+    PRIE(Predis\\Client@hIncrByFloat);PRIE(Predis\\Client@hKeys);PRIE(Predis\\Client@hLen);PRIE(Predis\\Client@hMGet);PRIE(Predis\\Client@hMSet);
+    PRIE(Predis\\Client@hSet);PRIE(Predis\\Client@hSetNx);PRIE(Predis\\Client@hVals);PRIE(Predis\\Client@hScan);PRIE(Predis\\Client@hStrLen);
+    RIE(Predis\\Client@sadd);RIE(Redis@srem);
+
 
     /* add memcache ele */
     if (extension_loaded("memcached")) {
